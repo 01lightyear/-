@@ -63,6 +63,12 @@ class Player:
                     self.speed_y = 0  # 重置垂直速度
                     #global point2
                     #point2+=1
+                if self.rect.right > platform.rect.left and self.rect.left < platform.rect.right:
+                    if self.rect.bottom > platform.rect.top and self.rect.top < platform.rect.bottom:
+                        if self.rect.centerx < platform.rect.centerx:  # 从左侧碰撞
+                            self.rect.right = platform.rect.left  # 置于平台左侧
+                        else:  # 从右侧碰撞
+                            self.rect.left = platform.rect.right  # 置于平台右侧
 
         # 碰撞检测与地面
         if self.rect.y >= SCREEN_HEIGHT - self.rect.height:
