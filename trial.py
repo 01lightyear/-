@@ -51,7 +51,7 @@ class Player:
         # 碰撞检测与平台
         for platform in platforms:
             if self.rect.colliderect(platform.rect):  # 检测与平台的碰撞
-                if self.speed_y > 0 and self.rect.bottom >= platform.rect.top:
+                if self.speed_y > 0 and self.rect.bottom >= platform.rect.top and self.rect.bottom<=10+platform.rect.bottom:
                     self.rect.bottom = platform.rect.top  # 置底
                     self.on_ground = True  # 站在平台上
                     self.speed_y = 0  # 重置垂直速度
