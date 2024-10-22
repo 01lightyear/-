@@ -1,8 +1,13 @@
 import pygame
 import sys
+from PIL import Image
 
 # 初始化 Pygame
 pygame.init()
+pygame.mixer.init()
+
+# 加载音效
+jump_sound = pygame.mixer.Sound('waao.wav')  # 加载音效文件
 
 # 设置屏幕尺寸
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 600
@@ -17,8 +22,8 @@ WHITE = (255, 255, 255)
 PLATFORM_COLOR = (0, 128, 0)  # 平台的颜色
 leftspeed=-1
 rightspeed=1
-point1=0
-point2=0
+
+
 # 玩家类
 class Player:
     def __init__(self):
@@ -34,6 +39,7 @@ class Player:
         if self.on_ground:
             self.speed_y = -14  # 调整跳跃力度为-14
             self.on_ground = False
+            jump_sound.play()
 
     def move(self, direction):
         self.rect.x += direction * self.speed_x
@@ -63,6 +69,7 @@ class Player:
                     self.speed_y = 0  # 重置垂直速度
                     #global point2
                     #point2+=1
+
                 if self.rect.right > platform.rect.left and self.rect.left < platform.rect.right:
                     if self.rect.bottom > platform.rect.top and self.rect.top < platform.rect.bottom:
                         if self.rect.centerx < platform.rect.centerx:  # 从左侧碰撞
