@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 from PIL import Image
 
 # 初始化 Pygame
@@ -7,7 +8,9 @@ pygame.init()
 pygame.mixer.init()
 
 # 加载音效
-jump_sound = pygame.mixer.Sound('waao.wav')  # 加载音效文件
+jump_sound = [pygame.mixer.Sound('waao.wav'), pygame.mixer.Sound('fenming.wav')] # 加载音效文件
+
+
 
 # 设置屏幕尺寸
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 600
@@ -34,12 +37,13 @@ class Player:
         self.speed_y = 0
         self.on_ground = False
         self.speed_x = 3  # 调整水平移动速度为3
+        self.music_played = False  # 添加一个标志位来跟踪音乐播放状态
 
     def jump(self):
         if self.on_ground:
             self.speed_y = -14  # 调整跳跃力度为-14
             self.on_ground = False
-            jump_sound.play()
+            random.choice(jump_sound).play()
 
     def move(self, direction):
         self.rect.x += direction * self.speed_x
