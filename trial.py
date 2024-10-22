@@ -8,7 +8,7 @@ pygame.init()
 pygame.mixer.init()
 
 # 加载音效
-jump_sound = [pygame.mixer.Sound('waao.wav'), pygame.mixer.Sound('fenming.wav')] # 加载音效文件
+jump_sound = [pygame.mixer.Sound('waao.wav'), pygame.mixer.Sound('bing.wav')] # 加载音效文件
 
 
 
