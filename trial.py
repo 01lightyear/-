@@ -12,7 +12,7 @@ pygame.mixer.init()
 # 加载音效
 jump_sound = pygame.mixer.Sound('file\\dash.wav')  # 加载音效文件
 game_over_sound = pygame.mixer.Sound('file\\gameover.wav')  # 加载游戏结束的音效
-bullet_sound = pygame.mixer.Sound('file\\waao.wav')# 加载子弹发射音效
+bullet_sound = pygame.mixer.Sound('waao.wav')# 加载子弹发射音效
 bullet_sound.set_volume(0.3)
 # 设置屏幕尺寸
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 600
@@ -23,8 +23,8 @@ original_player_image = pygame.image.load('file\\player.png')  # 玩家角色的
 player_image = pygame.transform.scale(original_player_image, (50, 50))  # 缩放为 50x50
 bullet_image = pygame.image.load('file\\bullet.png')
 bullet_image = pygame.transform.scale(bullet_image,(16,10))
-monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
-monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
+#monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
+#monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
 angry_image = pygame.image.load('file\\angry_mother.png')
 angry_image = pygame.transform.scale(angry_image,(130,163))
 # 定义颜色
@@ -77,7 +77,7 @@ class Player:
 
 # 怪物类
 class Monster:
-    def __init__(self,monster_image,speed=1.2,hp=100,slowspeed=0.8):
+    def __init__(self,monster_image,speed=1.2,hp=200,slowspeed=0.8):
         self.image = monster_image
         self.original_hp=hp
         self.rect = self.image.get_rect()
@@ -88,6 +88,7 @@ class Monster:
         self.slowspeed=slowspeed
     def update(self, player):
         if self.hp>0:
+            print(self.hp)
             # 计算怪物与玩家之间的距离
             dx = player.rect.x - self.rect.x
             dy = player.rect.y - self.rect.y
@@ -176,6 +177,7 @@ class Bullet:
                     monster.hp -= self.hit
                     return False
             else:
+                monster.hp-= self.hit
                 return False  # 子弹失效
 
         # 检测子弹是否碰到平台
@@ -200,8 +202,8 @@ platforms = [
     Platform(400, 60, 210, 10),
     Platform(800,360,150,10),
     Platform(90,350,180,10),
-    Platform(820,500,120,10),
-    Platform(1020,440,150,10)
+    Platform(800,500,120,10),
+    Platform(1000,440,150,10)
 ]
 
 # 创建玩家
@@ -281,7 +283,6 @@ while not choose:
                     choose = True
     pygame.display.flip()  # 更新屏幕
     clock.tick(60)  # 控制帧率
-# 倒计时相关
 if selected_Monster ==1:
     monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
     monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
@@ -291,6 +292,7 @@ elif selected_Monster==2:
 elif selected_Monster==3:
     monster_image = pygame.image.load('file\\monster_chestnut.png')  # 怪物角色图像
     monster_image = pygame.transform.scale(monster_image, (80, 80))  # 缩放怪物图像为 50x50
+print(monster_image)
 start_ticks = pygame.time.get_ticks()  # 获取游戏开始时间
 countdown = 5.0  # 倒计时5秒
 game_over = False  # 游戏是否结束
@@ -302,7 +304,11 @@ call_for_fire_count=0.0
 win_countdown_count=0.0
 def monster_choose(m,n):
     if (m,n) == (1,1):
-        return Monster()
+        return Monster(monster_image)
+    if (m,n) == (2,1):
+        return Monster(monster_image)
+    if(m,n) == (3,1):
+        return Monster(monster_image)
     if (m,n) == (1,3):
         return Monster_mother(monster_image)
 while True:
@@ -338,7 +344,6 @@ while True:
                 if not call_for_fire: #开火间隔控制为0.8秒每发
                     call_for_fire = True
                     mouse_x, mouse_y = event.pos  # 获取鼠标点击位置
-                    print(mouse_x, mouse_y)
                     bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y)  # 从玩家中心位置发射子弹
                     bullet_list.append(bulletnew)  # 添加到子弹列表
                     call_for_fire_count = pygame.time.get_ticks()
