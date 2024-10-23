@@ -4,28 +4,29 @@ import numpy as np
 import sys
 import math
 import threading
+import random
 # 初始化 Pygame
 pygame.init()
 pygame.mixer.init()
 
 # 加载音效
-jump_sound = pygame.mixer.Sound('dash.wav')  # 加载音效文件
-game_over_sound = pygame.mixer.Sound('gameover.wav')  # 加载游戏结束的音效
-bullet_sound = pygame.mixer.Sound('waao.wav')# 加载子弹发射音效
+jump_sound = pygame.mixer.Sound('file\\dash.wav')  # 加载音效文件
+game_over_sound = pygame.mixer.Sound('file\\gameover.wav')  # 加载游戏结束的音效
+bullet_sound = pygame.mixer.Sound('file\\waao.wav')# 加载子弹发射音效
 bullet_sound.set_volume(0.3)
 # 设置屏幕尺寸
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # 加载图像
-original_player_image = pygame.image.load('player.png')  # 玩家角色的原始图像
+original_player_image = pygame.image.load('file\\player.png')  # 玩家角色的原始图像
 player_image = pygame.transform.scale(original_player_image, (50, 50))  # 缩放为 50x50
-bullet_image = pygame.image.load('bullet.png')
+bullet_image = pygame.image.load('file\\bullet.png')
 bullet_image = pygame.transform.scale(bullet_image,(16,10))
-monster_image = pygame.image.load('monster_none.png')  # 怪物角色图像
+monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
 monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
-angry_image = pygame.image.load('angry_mother.png')
-angry_image = pygame.transform.scale(angry_image,(100,125))
+angry_image = pygame.image.load('file\\angry_mother.png')
+angry_image = pygame.transform.scale(angry_image,(130,163))
 # 定义颜色
 WHITE = (255, 255, 255)
 PLATFORM_COLOR = (0, 128, 0)  # 平台的颜色
@@ -39,7 +40,7 @@ class Player:
         self.rect.y = SCREEN_HEIGHT - self.rect.height - 100
         self.speed_y = 0
         self.on_ground = False
-        self.speed_x = 3  # 调整水平移动速度为3
+        self.speed_x = 3.5  # 调整水平移动速度为3
         self.alive_time = 0.0  # 玩家存活时间
 
     def jump(self):
@@ -76,7 +77,7 @@ class Player:
 
 # 怪物类
 class Monster:
-    def __init__(self,monster_image,speed=1.2,hp=100):
+    def __init__(self,monster_image,speed=1.2,hp=100,slowspeed=0.8):
         self.image = monster_image
         self.original_hp=hp
         self.rect = self.image.get_rect()
@@ -84,7 +85,7 @@ class Monster:
         self.rect.y = 0
         self.speed = speed
         self.hp=hp
-
+        self.slowspeed=slowspeed
     def update(self, player):
         if self.hp>0:
             # 计算怪物与玩家之间的距离
@@ -100,8 +101,11 @@ class Monster:
                 # 更新怪物的位置
                 self.rect.x += direction_x * self.speed
                 self.rect.y += direction_y * self.speed
+            for platform in platforms:
+                if self.rect.colliderect(platform.rect):
+                    self.speed=self.slowspeed
 class Monster_mother(Monster):
-    def __init__(self, monster_image, angry_image,speed=1.2, hp=250):
+    def __init__(self, monster_image, angry_image=angry_image,speed=1.2, hp=400):
         self.angry_image = angry_image
         super().__init__(monster_image, speed, hp)
         self.original_size = (self.rect.width, self.rect.height)
@@ -112,19 +116,20 @@ class Monster_mother(Monster):
         self.half = False #血量是否过半
     def update(self, player):
         if self.hp > 0:
-            print(self.hp)
-            print(self.half)
             if self.hp <= self.original_hp / 2 and not self.half:
                 self.half = True
-                self.speed=1.6
+                self.speed*=1.3
+                self.slowspeed*=1.3
                 self.is_stopped = True
                 self.stop_tracking_timer = pygame.time.get_ticks() + 3000
-                self.rect.width = int(self.original_size[0] * 1.2)
-                self.rect.height = int(self.original_size[1] * 1.2)
             if self.is_stopped:
                 if pygame.time.get_ticks() >= self.stop_tracking_timer:
                     self.is_stopped = False
                     self.image = self.angry_image
+                    self.rect=self.image.get_rect()
+                    self.rect.x = random.choice([0,SCREEN_WIDTH-self.rect.width])
+                    self.rect.y = random.choice([0,SCREEN_HEIGHT-self.rect.height])
+                    print(self.rect.x,self.rect.y)
             # 开始隐形效果
             if not self.is_stopped and not self.is_invisible and self.image==self.angry_image:
                 if pygame.time.get_ticks() % 5000 < 100:  # 每隔5秒隐形3秒
@@ -166,8 +171,12 @@ class Bullet:
 
         # 检测子弹是否碰到怪物
         if monster and self.rect.colliderect(monster.rect):
-            monster.hp -= self.hit
-            return False  # 子弹失效
+            if isinstance(monster,Monster_mother):
+                if not monster.is_invisible:
+                    monster.hp -= self.hit
+                    return False
+            else:
+                return False  # 子弹失效
 
         # 检测子弹是否碰到平台
         for platform in platforms:
@@ -180,11 +189,19 @@ class Bullet:
         return True  # 子弹有效
 # 创建平台列表
 platforms = [
-    Platform(100, 550, 600, 10),
-    Platform(150, 450, 100, 10),
-    Platform(300, 350, 200, 10),
-    Platform(500, 250, 150, 10),
-    Platform(200, 150, 300, 10)
+    Platform(100, 520, 600, 10),
+    Platform(200, 450, 150, 10),
+    Platform(400, 375, 200, 10),
+    Platform(600, 300, 150, 10),
+    Platform(800, 210, 200, 10),
+    Platform(300, 150, 150, 10),
+    Platform(500, 220, 100, 10),
+    Platform(700, 120, 200, 10),
+    Platform(400, 60, 210, 10),
+    Platform(800,360,150,10),
+    Platform(90,350,180,10),
+    Platform(820,500,120,10),
+    Platform(1020,440,150,10)
 ]
 
 # 创建玩家
@@ -266,13 +283,13 @@ while not choose:
     clock.tick(60)  # 控制帧率
 # 倒计时相关
 if selected_Monster ==1:
-    monster_image = pygame.image.load('monster_none.png')  # 怪物角色图像
+    monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
     monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
 elif selected_Monster==2:
-    monster_image = pygame.image.load('monster_dog.png')  # 怪物角色图像
+    monster_image = pygame.image.load('file\\monster_dog.png')  # 怪物角色图像
     monster_image = pygame.transform.scale(monster_image, (120, 120))  # 缩放怪物图像为 50x50
 elif selected_Monster==3:
-    monster_image = pygame.image.load('monster_lizitou.png')  # 怪物角色图像
+    monster_image = pygame.image.load('file\\monster_chestnut.png')  # 怪物角色图像
     monster_image = pygame.transform.scale(monster_image, (80, 80))  # 缩放怪物图像为 50x50
 start_ticks = pygame.time.get_ticks()  # 获取游戏开始时间
 countdown = 5.0  # 倒计时5秒
@@ -283,6 +300,11 @@ monster = None  # 初始化怪物为 None
 call_for_fire = False
 call_for_fire_count=0.0
 win_countdown_count=0.0
+def monster_choose(m,n):
+    if (m,n) == (1,1):
+        return Monster()
+    if (m,n) == (1,3):
+        return Monster_mother(monster_image)
 while True:
     if not game_over:
         # 倒计时处理
@@ -290,7 +312,7 @@ while True:
         countdown_display = max(0, int(countdown - int(seconds)))  # 倒计时剩余时间
 
         if countdown_display == 0 and monster is None:  # 倒计时结束后生成怪物
-            monster = Monster_mother(monster_image,angry_image)
+            monster = monster_choose(selected_Monster,selected_difficulty)
             show_alive_time = True  # 倒计时结束后开始显示存活时间
         if not monster is None:
             if monster.hp <= 0:
@@ -316,6 +338,7 @@ while True:
                 if not call_for_fire: #开火间隔控制为0.8秒每发
                     call_for_fire = True
                     mouse_x, mouse_y = event.pos  # 获取鼠标点击位置
+                    print(mouse_x, mouse_y)
                     bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y)  # 从玩家中心位置发射子弹
                     bullet_list.append(bulletnew)  # 添加到子弹列表
                     call_for_fire_count = pygame.time.get_ticks()
@@ -391,26 +414,26 @@ while True:
             win_countdown_count=pygame.time.get_ticks()
 
     if show_player_info:
+        info_font = pygame.font.Font(None,20)
         player_info = f'Player: ({int(player.rect.x)}, {int(player.rect.y)}) speed: {player.speed_x}, {player.speed_y}'
-        font_surface = font.render(player_info, True, (0, 0, 0))
+        font_surface = info_font.render(player_info, True, (0, 0, 0))
         screen.blit(font_surface, (10, 10))
-
         for platform in platforms:
-            corner_info = (f'platform: TL({platform.rect.topleft}), TR({platform.rect.topright}), '
+            corner_info = (f'TL({platform.rect.topleft}), TR({platform.rect.topright}), '
                            f'BL({platform.rect.bottomleft}), BR({platform.rect.bottomright})')
-            corner_surface = font.render(corner_info, True, (0, 0, 0))
-            screen.blit(corner_surface, (10, 40 + platforms.index(platform) * 30))
-
+            corner_surface = info_font.render(corner_info, True, (0, 0, 0))
+            text_position = (
+            platform.rect.centerx - corner_surface.get_width() // 2, platform.rect.top - corner_surface.get_height())
+            screen.blit(corner_surface, text_position)
         if monster:
             monster_info = f'Monster: ({int(monster.rect.x)}, {int(monster.rect.y)}) speed: {monster.speed}'
-            monster_surface = font.render(monster_info, True, (0, 0, 0))
+            monster_surface = info_font.render(monster_info, True, (0, 0, 0))
             screen.blit(monster_surface, (SCREEN_WIDTH - 250, 10))
     if game_win and win_countdown_count <= -2500+pygame.time.get_ticks():
         break
     pygame.display.flip()
     clock.tick(60)
 pygame.init()
-# 打开视频文件
 # 打开视频文件
 if selected_difficulty == 1:
     video_path = "one.mp4"
@@ -431,7 +454,7 @@ screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 
 # 创建一个线程来播放音频
-audio_thread = threading.Thread(target=play_audio, args=("fuck.mp3",))
+audio_thread = threading.Thread(target=play_audio, args=("file\\fuck.mp3",))
 audio_thread.start()  # 开始播放音频
 
 # 视频播放主循环
