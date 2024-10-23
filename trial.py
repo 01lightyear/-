@@ -77,7 +77,7 @@ class Player:
 
 # 怪物类
 class Monster:
-    def __init__(self,monster_image,speed=1.2,hp=200,slowspeed=0.8):
+    def __init__(self,monster_image,speed=1.2,hp=200,slowspeed=0.9):
         self.image = monster_image
         self.original_hp=hp
         self.rect = self.image.get_rect()
@@ -88,23 +88,52 @@ class Monster:
         self.slowspeed=slowspeed
     def update(self, player):
         if self.hp>0:
-            print(self.hp)
             # 计算怪物与玩家之间的距离
             dx = player.rect.x - self.rect.x
             dy = player.rect.y - self.rect.y
             distance = math.sqrt(dx**2 + dy**2)
-
             if distance > 0:  # 确保不除以零
                 # 计算单位向量
                 direction_x = dx / distance
                 direction_y = dy / distance
-
                 # 更新怪物的位置
                 self.rect.x += direction_x * self.speed
                 self.rect.y += direction_y * self.speed
             for platform in platforms:
-                if self.rect.colliderect(platform.rect):
+                if self.rect.colliderect(platform.rect) and not (isinstance(self,Monster_dog) and self.is_scaled) :
                     self.speed=self.slowspeed
+class Monster_dog(Monster):
+    def __init__(self,monster_image,hp=400):
+        super().__init__(monster_image, hp=hp)
+        self.timer = 0  # 用于跟踪时间
+        self.scale_timer = 0  # 用于跟踪放大时间
+        self.is_scaled = False  # 记录当前是否放大
+        self.scale_duration = 2  # 放大持续时间
+        self.total_duration = 5  # 总周期时间
+        self.scale_start_time = 0  # 放大开始的时刻
+    def update(self, player):
+        self.timer += 1 / 60
+        if self.is_scaled:
+            self.scale_timer += 1 / 60  # 更新放大计时器
+            if self.scale_timer >= self.scale_duration:  # 两秒后恢复原大小
+                self.is_scaled = False
+                center = self.rect.center
+                self.image = pygame.transform.scale(self.image,
+                                                     (self.image.get_width() // 2, self.image.get_height() // 2))
+                self.rect.center = center  # 保持中心不变
+        if self.timer >= self.total_duration:
+            self.timer = 0  # 重置总计时器
+            self.scale_start_time = random.uniform(0, 3)  # 随机决定放大开始的时刻
+            self.scale_timer = 0  # 重置放大计时器
+
+        # 判断是否在放大阶段
+        if self.timer >= self.scale_start_time and not self.is_scaled and self.timer < self.scale_start_time + self.scale_duration:
+            self.is_scaled = True  # 开始放大
+            center = self.rect.center
+            self.image = pygame.transform.scale(self.image,
+                                                 (self.image.get_width() * 2, self.image.get_height() * 2))
+            self.rect.center = center  # 保持中心不变
+        super().update(player)
 class Monster_mother(Monster):
     def __init__(self, monster_image, angry_image=angry_image,speed=1.2, hp=400):
         self.angry_image = angry_image
@@ -309,6 +338,8 @@ def monster_choose(m,n):
         return Monster(monster_image)
     if(m,n) == (3,1):
         return Monster(monster_image)
+    if(m,n) == (2,3):
+        return Monster_dog(monster_image)
     if (m,n) == (1,3):
         return Monster_mother(monster_image)
 while True:
@@ -397,6 +428,12 @@ while True:
         else:
             if not monster.is_invisible:  # 仅在怪物可见时绘制
                 screen.blit(monster.image, monster.rect)
+        # 显示怪物的 HP
+        if not (isinstance(monster,Monster_mother) and monster.is_invisible):
+            hp_font = pygame.font.Font(None, 36)
+            hp_surface = hp_font.render(f'HP: {monster.hp}', True, (255, 0, 0))  # 红色字体
+            hp_position = (monster.rect.x, monster.rect.y + monster.rect.height)  # 在怪物下方显示 HP
+            screen.blit(hp_surface, hp_position)
     # 绘制子弹
     if not bullet_list==[]:
         for bullet in bullet_list:
