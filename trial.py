@@ -86,6 +86,7 @@ class Monster:
         self.speed = speed
         self.hp=hp
         self.slowspeed=slowspeed
+        self.colliderate=False
     def update(self, player):
         if self.hp>0:
             # 计算怪物与玩家之间的距离
@@ -99,9 +100,14 @@ class Monster:
                 # 更新怪物的位置
                 self.rect.x += direction_x * self.speed
                 self.rect.y += direction_y * self.speed
+            self.colliderate = False
             for platform in platforms:
-                if self.rect.colliderect(platform.rect) and not (isinstance(self,Monster_dog) and self.is_scaled) :
+                if self.rect.colliderect(platform.rect) and not (isinstance(self,Monster_dog) and self.rect.width>120) :
                     self.speed=self.slowspeed
+                    self.colliderate = True
+            if self.colliderate == False:
+                self.speed = 1.2
+
 class Monster_dog(Monster):
     def __init__(self,monster_image,hp=400):
         super().__init__(monster_image, hp=hp)
@@ -120,7 +126,7 @@ class Monster_dog(Monster):
                 center = self.rect.center
                 self.image = pygame.transform.scale(self.image,
                                                      (self.image.get_width() // 2, self.image.get_height() // 2))
-                self.rect.center = center  # 保持中心不变
+                self.rect = self.image.get_rect(center=center)  # 保持中心不变
         if self.timer >= self.total_duration:
             self.timer = 0  # 重置总计时器
             self.scale_start_time = random.uniform(0, 3)  # 随机决定放大开始的时刻
@@ -132,7 +138,7 @@ class Monster_dog(Monster):
             center = self.rect.center
             self.image = pygame.transform.scale(self.image,
                                                  (self.image.get_width() * 2, self.image.get_height() * 2))
-            self.rect.center = center  # 保持中心不变
+            self.rect = self.image.get_rect(center=center)   # 保持中心不变
         super().update(player)
 class Monster_mother(Monster):
     def __init__(self, monster_image, angry_image=angry_image,speed=1.2, hp=400):
@@ -232,7 +238,8 @@ platforms = [
     Platform(800,360,150,10),
     Platform(90,350,180,10),
     Platform(800,500,120,10),
-    Platform(1000,440,150,10)
+    Platform(1000,440,150,10),
+    Platform(90 ,200,120,10)
 ]
 
 # 创建玩家
@@ -372,7 +379,7 @@ while True:
             if event.button == 3:
                 paused = not paused  # 切换暂停状态
             if event.button == 1:  # 左键点击
-                if not call_for_fire: #开火间隔控制为0.8秒每发
+                if not call_for_fire: #开火间隔控制为0.4秒每发
                     call_for_fire = True
                     mouse_x, mouse_y = event.pos  # 获取鼠标点击位置
                     bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y)  # 从玩家中心位置发射子弹
