@@ -557,12 +557,13 @@ while running:
     # 读取视频帧
     ret, frame = cap.read()
     if not ret:
-        break  # 如果没有帧可读，退出循环
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        continue
     # 将 BGR 转换为 RGB
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     # 顺时针旋转 90 度
     frame = np.rot90(frame, k=-1)  # 旋转
-    # 水平翻转帧（可选，根据需要）
+    # 水平翻转帧
     frame = np.flip(frame, axis=1)
     # 创建 Pygame 表面
     frame_surface = pygame.surfarray.make_surface(frame)
