@@ -14,6 +14,9 @@ jump_sound = pygame.mixer.Sound('file\\dash.wav')  # 加载音效文件
 game_over_sound = pygame.mixer.Sound('file\\gameover.wav')  # 加载游戏结束的音效
 bullet_sound = pygame.mixer.Sound('waao.wav')# 加载子弹发射音效
 bullet_sound.set_volume(0.3)
+activate_sound = pygame.mixer.Sound('activate.wav')
+bullet_huge_sound = pygame.mixer.Sound('si!.wav')
+bullet_huge_sound.set_volume(1.6)
 # 设置屏幕尺寸
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -23,6 +26,8 @@ original_player_image = pygame.image.load('file\\player.png')  # 玩家角色的
 player_image = pygame.transform.scale(original_player_image, (50, 50))  # 缩放为 50x50
 bullet_image = pygame.image.load('file\\bullet.png')
 bullet_image = pygame.transform.scale(bullet_image,(16,10))
+bullet_huge_image = pygame.image.load('file\\bullet.png')
+bullet_huge_image = pygame.transform.scale(bullet_huge_image,(96,60))
 #monster_image = pygame.image.load('file\\monster_none.png')  # 怪物角色图像
 #monster_image = pygame.transform.scale(monster_image, (100, 125))  # 缩放怪物图像为 50x50
 angry_image = pygame.image.load('file\\angry_mother.png')
@@ -42,7 +47,20 @@ class Player:
         self.on_ground = False
         self.speed_x = 3.5  # 调整水平移动速度为3
         self.alive_time = 0.0  # 玩家存活时间
-
+        self.skill_active = False
+        self.skill_duration = 7  # 技能持续时间7秒
+        self.cooldown_time = 20.0  # 冷却时间20秒
+        self.cooldown_timer = 0.0  # 冷却计时器
+        self.active_timer = 0  # 技能效果计时器
+        self.font_cd = pygame.font.Font(None, 36)  # 冷却字体设置
+    def activate_skill(self):
+        if not self.skill_active and self.cooldown_timer <= 0:
+            self.speed_x = 4.5  # 提升水平移动速度
+            self.speed_y = -17  # 提升跳跃速度
+            self.skill_active = True
+            self.active_timer = self.skill_duration  # 开始计时
+            self.cooldown_timer = self.cooldown_time  # 重置冷却计时
+            activate_sound.play()
     def jump(self):
         if self.on_ground:
             self.speed_y = -14  # 调整跳跃力度为-14
@@ -60,7 +78,6 @@ class Player:
     def update(self, platforms):
         self.rect.y += self.speed_y
         self.speed_y += 1  # 重力影响
-
         for platform in platforms:
             if self.rect.colliderect(platform.rect):
                 if self.speed_y > 0 and self.rect.bottom >= platform.rect.top and self.rect.bottom <= 10 + platform.rect.bottom:
@@ -74,7 +91,21 @@ class Player:
             self.rect.y = SCREEN_HEIGHT - self.rect.height
             self.on_ground = True
             self.speed_y = 0
-
+        # 更新冷却计时和技能持续时间
+        if self.skill_active:
+            self.active_timer -= 1 / 60  # 每帧减少技能持续时间
+            if self.active_timer <= 0:
+                self.skill_active = False
+                self.speed_x = 3.5  # 恢复原始水平移动速度
+                self.speed_y = -14  # 恢复原始跳跃力度
+        if self.cooldown_timer > 0:
+            self.cooldown_timer -= 1 / 60  # 每帧减少冷却时间
+        # 显示冷却时间
+    def draw(self, screen):
+        # 显示冷却时间
+        if self.cooldown_timer > 0:
+            cooldown_text = self.font_cd.render(f"Cooldown: {self.cooldown_timer:.2f}s", True, (128, 0, 128))
+            screen.blit(cooldown_text, (10, SCREEN_HEIGHT - 30))  # 在左下角显示冷却时间
 # 怪物类
 class Monster:
     def __init__(self,monster_image,speed=1.2,hp=200,slowspeed=0.9):
@@ -185,7 +216,7 @@ class Platform:
     def draw(self, surface):
         pygame.draw.rect(surface, PLATFORM_COLOR, self.rect)
 class Bullet:
-    def __init__(self, x, y, target_x, target_y, hit=10):
+    def __init__(self, x, y, target_x, target_y,bullet_image,bullet_sound=bullet_sound,penetrate=False,hit=10):
         self.hit = hit
         self.speed = 15  # 子弹的移动速度
         self.image = bullet_image  # 子弹图像
@@ -200,6 +231,7 @@ class Bullet:
         self.direction_y = dy / distance
         self.fire = True  # 标记子弹为发射状态
         bullet_sound.play()
+        self.penetrate = penetrate
     def update(self, monster, platforms):
         # 更新子弹的位置，沿着计算的方向移动
         self.rect.x += self.direction_x * self.speed
@@ -216,9 +248,10 @@ class Bullet:
                 return False  # 子弹失效
 
         # 检测子弹是否碰到平台
-        for platform in platforms:
-            if self.rect.colliderect(platform.rect):
-                return False  # 子弹失效
+        if not self.penetrate:
+            for platform in platforms:
+                if self.rect.colliderect(platform.rect):
+                    return False  # 子弹失效
         # 检查子弹是否超出屏幕
         if self.rect.x < 0 or self.rect.x > SCREEN_WIDTH or self.rect.y < 0 or self.rect.y > SCREEN_HEIGHT:
             return False  # 子弹失效
@@ -349,6 +382,8 @@ def monster_choose(m,n):
         return Monster_dog(monster_image)
     if (m,n) == (1,3):
         return Monster_mother(monster_image)
+
+pygame.key.stop_text_input()
 while True:
     if not game_over:
         # 倒计时处理
@@ -369,12 +404,14 @@ while True:
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 player.jump()
             if event.key == pygame.K_LCTRL or event.key== pygame.K_RCTRL:
                 show_player_info = not show_player_info
-            if event.key == pygame.K_DOWN :
+            if event.key == pygame.K_s :
                 player.speed_y = max(player.speed_y - 3, 0)
+            if event.key == pygame.K_q :
+                player.activate_skill()
         if event.type == pygame.MOUSEBUTTONDOWN :  # 右键
             if event.button == 3:
                 paused = not paused  # 切换暂停状态
@@ -382,17 +419,21 @@ while True:
                 if not call_for_fire: #开火间隔控制为0.4秒每发
                     call_for_fire = True
                     mouse_x, mouse_y = event.pos  # 获取鼠标点击位置
-                    bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y)  # 从玩家中心位置发射子弹
-                    bullet_list.append(bulletnew)  # 添加到子弹列表
+                    if not player.skill_active:
+                        bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y,bullet_image)  # 从玩家中心位置发射子弹
+                        bullet_list.append(bulletnew)  # 添加到子弹列表
+                    if player.skill_active:
+                        bulletnew = Bullet(player.rect.centerx, player.rect.centery, mouse_x, mouse_y,bullet_huge_image,bullet_huge_sound,True,20)  # 从玩家中心位置发射子弹
+                        bullet_list.append(bulletnew)  # 添加到子弹列表
                     call_for_fire_count = pygame.time.get_ticks()
     if not paused and not game_over and not game_win:
         if call_for_fire_count <= -400+pygame.time.get_ticks(): #判断开火冷却是否结束
             call_for_fire = False
         # 移动玩家
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_a]:
             player.move(-1)
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_d]:
             player.move(1)
         if not bullet_list == []:
             # 更新子弹
@@ -449,7 +490,7 @@ while True:
     if show_alive_time:  # 仅在倒计时结束后显示存活时间
         alive_time_surface = font.render(f'Time: {player.alive_time-countdown:.2f}s', True, (0, 0, 0))
         screen.blit(alive_time_surface, (SCREEN_WIDTH - 150, SCREEN_HEIGHT - 40))
-
+    player.draw(screen)
     # 游戏结束显示
     if game_over:
         game_over_font = pygame.font.Font(None, 100)
@@ -503,7 +544,7 @@ screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
 
 # 创建一个线程来播放音频
-audio_thread = threading.Thread(target=play_audio, args=("file\\fuck.mp3",))
+audio_thread = threading.Thread(target=play_audio, args=("fuck.mp3",))
 audio_thread.start()  # 开始播放音频
 
 # 视频播放主循环
