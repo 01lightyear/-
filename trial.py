@@ -49,6 +49,7 @@ class Player:
         self.speed_x = 3.5  # 调整水平移动速度为3.5
         self.alive_time = 0.0  # 玩家存活时间
         self.skill_active = False
+        self.speed_jump = -14
         self.skill_duration = 3  # 技能持续时间3秒
         self.cooldown_time = 20.0  # 冷却时间20秒
         self.cooldown_timer = 0.0  # 冷却计时器
@@ -58,14 +59,14 @@ class Player:
     def activate_skill(self):
         if not self.skill_active and self.cooldown_timer <= 0:
             self.speed_x = 4.5  # 提升水平移动速度
-            self.speed_y = -17  # 提升跳跃速度
+            self.speed_jump = -17
             self.skill_active = True
             self.active_timer = self.skill_duration  # 开始计时
             self.cooldown_timer = self.cooldown_time  # 重置冷却计时
             activate_sound.play()
     def jump(self):
         if self.on_ground:
-            self.speed_y = -14  # 调整跳跃力度为-14
+            self.speed_y = self.speed_jump  # 调整跳跃力度
             self.on_ground = False
             jump_sound.play()
     def move(self, direction):
@@ -97,7 +98,7 @@ class Player:
             if self.active_timer <= 0:
                 self.skill_active = False
                 self.speed_x = 3.5  # 恢复原始水平移动速度
-                self.speed_y = -14  # 恢复原始跳跃力度
+                self.speed_jump= -14  # 恢复原始跳跃力度
         if self.cooldown_timer > 0:
             self.cooldown_timer -= 1 / 60  # 每帧减少冷却时间
         # 显示冷却时间
@@ -140,7 +141,7 @@ class Monster:
             if self.colliderate == False:
                 self.speed = 1.2
 class Monster_dog(Monster):
-    def __init__(self,monster_image,hp=400):
+    def __init__(self,monster_image,hp=650):
         super().__init__(monster_image, hp=hp)
         self.timer = 0  # 用于跟踪时间
         self.scale_timer = 0  # 用于跟踪放大时间
@@ -172,7 +173,7 @@ class Monster_dog(Monster):
             self.rect = self.image.get_rect(center=center)   # 保持中心不变
         super().update(player)
 class Monster_mother(Monster):
-    def __init__(self, monster_image, angry_image=angry_image,speed=1.2, hp=400):
+    def __init__(self, monster_image, angry_image=angry_image,speed=1.2, hp=650):
         self.angry_image = angry_image
         super().__init__(monster_image, speed, hp)
         self.original_size = (self.rect.width, self.rect.height)
@@ -208,8 +209,13 @@ class Monster_mother(Monster):
             if not self.is_stopped:
                 super().update(player)
 class Monster_chestnut(Monster):
-    def __init__(self,monster_image,speed=1.2,hp=200,slowspeed=0.9):
+    def __init__(self,monster_image,speed=1.2,hp=400,slowspeed=0.9):
         super().__init__(monster_image,speed,hp,slowspeed)
+        self.activate_timer=0.0
+        self.activate_cycle = 5#释放周期
+    def update(self,player):
+        if pygame.time.get_ticks()>self.activate_timer:
+            self.activate_timer = pygame.time.get_ticks() + self.activate_cycle
 
 # 平台类
 class Platform:
@@ -257,7 +263,7 @@ class Bullet:
             return False  # 子弹失效
         return True  # 子弹有效
 class Bullet_waao(Bullet):
-    def __init__(self, x, y, target_x, target_y,bullet_image,bullet_sound,penetrate=True,hit=50,speed=20):
+    def __init__(self, x, y, target_x, target_y,bullet_image,bullet_sound,penetrate=True,hit=0,speed=20):
         super().__init__(x, y, target_x, target_y,bullet_image,bullet_sound,penetrate,hit,speed)
     def update(self, monster,platforms):
         # 更新子弹的位置，沿着计算的方向移动
@@ -268,7 +274,7 @@ class Bullet_waao(Bullet):
                 if monster.attached == False:
                     monster.hp -= self.hit
                     monster.attached = True
-                if monster:
+                if monster:#击退怪物
                     monster.rect.x += self.direction_x * (self.speed+monster.speed)
                     monster.rect.y += self.direction_y * (self.speed+monster.speed)
         if self.rect.x < 0 or self.rect.x > SCREEN_WIDTH or self.rect.y < 0 or self.rect.y > SCREEN_HEIGHT:
@@ -474,8 +480,15 @@ while True:
     # 倒计时显示
     font_size = 100  # 修改字体大小
     font_color = (255, 0, 0)
-    font = pygame.font.Font(None, font_size)
+    font_instruction_size = 40
     if countdown_display > 0:
+        # 显示提示文本
+        font = pygame.font.Font(None, font_instruction_size)
+        instructions_text = "Use WASD to control your player, use your mouse to fire, use Q to activate"
+        instructions_surface = font.render(instructions_text, True, font_color)
+        # 设置显示位置，可以根据需要调整坐标 (x, y)
+        screen.blit(instructions_surface, (SCREEN_WIDTH // 2 - instructions_surface.get_width() // 2, 100))
+        font = pygame.font.Font(None, font_size)
         countdown_surface = font.render(f'{countdown_display}', True, font_color)
         screen.blit(countdown_surface, (SCREEN_WIDTH // 2 - 20, SCREEN_HEIGHT // 2 - 20))
     font = pygame.font.Font(None, 36)
@@ -562,6 +575,8 @@ while running:
             pygame.mixer.music.stop()
     # 读取视频帧
     ret, frame = cap.read()
+    if not pygame.mixer.music.get_busy():
+        break
     if not ret:
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         continue
